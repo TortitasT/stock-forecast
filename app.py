@@ -1,3 +1,4 @@
+import datetime
 import matplotlib.pyplot as plt
 import pandas as pd
 from prophet import Prophet
@@ -16,8 +17,8 @@ def download_stock_data(stock_name, start_date, end_date):
     df = df.resample('D', on='ds').last().fillna(method='ffill').reset_index()
     return df
 
-def forecast_plot(forecast, df, filename = 'forecast.png'):
-    begining_last_months = df.iloc[-1]['ds'] - pd.DateOffset(months=3)
+def forecast_plot(forecast, df, start_date, stock_name, filename = 'forecast.png'):
+    begining_last_months = df.iloc[-1]['ds'] - pd.DateOffset(months=12)
     forecast_last_months = forecast.merge(df, on='ds', how='left')
     forecast_last_months = forecast_last_months[forecast_last_months['ds'] > begining_last_months]
 
@@ -37,13 +38,22 @@ def forecast_plot(forecast, df, filename = 'forecast.png'):
     twin2.plot(forecast_last_months['ds'], forecast_last_months['yhat_lower'], label='Lower predicted price', color='g', alpha=0.5)
     plt.fill_between(forecast_last_months['ds'], forecast_last_months['yhat_upper'], forecast_last_months['yhat_lower'], color='g', alpha=0.1)
 
+    start_date = pd.to_datetime(start_date)
+    start_date_year = start_date.year
+    start_date_month = start_date.month
+    start_date_day = start_date.day
+    plt.axvline(datetime.datetime(start_date_year, start_date_month, start_date_day), color='red', linewidth=3, linestyle='--')
+
     fig.legend(handles=[p1, p2])
     plt.gcf().autofmt_xdate()
-    plt.gca().set_title('Stock price prediction AAPL')
+    plt.gca().set_title(f'Stock price prediction {stock_name}')
     fig.savefig(filename)
 
 def backtest(stock, start_date, end_date):
     m = Prophet()
+
+    if start_date == 'now':
+        start_date = pd.to_datetime('now').strftime('%Y-%m-%d')
 
     # Download and prepare stock data
     df = download_stock_data(stock, '2000-01-01', end_date)
@@ -59,11 +69,13 @@ def backtest(stock, start_date, end_date):
     forecast = m.predict(future)
 
     filename = f'forecast_{stock}.png'
-    forecast_plot(forecast, df, filename)
+    forecast_plot(forecast, df, start_date, stock, filename)
 
     subprocess.run(['open', filename])
 
 # En este pasa algo super extraño
 # backtest('AAPL', '2024-06-01', '2024-06-28')
 
-backtest('BIDU', '2024-05-01', '2024-07-28')
+# backtest('CRL', 'now', '2024-07-28')
+# backtest('CRL', '2024-04-01', '2024-06-28')
+backtest('BRK-A', '2024-07-01', '2024-10-28')
